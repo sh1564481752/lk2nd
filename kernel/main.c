@@ -58,7 +58,8 @@ static void call_constructors(void)
 	void **ctor;
 
 	ctor = &__ctor_list;
-	while(ctor != &__ctor_end) {
+	while (ctor != &__ctor_end)
+	{
 		void (*func)(void);
 
 		func = (void (*)(void))*ctor;
@@ -72,50 +73,58 @@ uintptr_t __stack_chk_guard;
 
 /* called from crt0.S */
 void kmain(void) __NO_RETURN __EXTERNALLY_VISIBLE;
+/**
+ * @brief 内核主函数，负责系统初始化和启动。
+ *
+ * 该函数是系统启动的核心入口点，执行一系列初始化操作，包括线程、堆、定时器等子系统的初始化，
+ * 并最终创建引导完成线程或进入空闲线程状态。
+ */
 void kmain(void)
 {
 	thread_t *thr;
 
-	// get us into some sort of thread context
+	// 初始化线程上下文，确保系统处于有效的线程环境中
 	thread_init_early();
 
-	// early arch stuff
+	// 执行架构相关的早期初始化操作
 	arch_early_init();
 
-	// do any super early platform initialization
+	// 执行平台相关的超早期初始化操作
 	platform_early_init();
 
-	// do any super early target initialization
+	// 执行目标平台相关的超早期初始化操作
 	target_early_init();
 
+	// 初始化调试系统
 	debug_init();
 	dprintf(INFO, "welcome to lk\n\n");
 	bs_set_timestamp(BS_BL_START);
 
-	// deal with any static constructors
+	// 调用静态构造函数，完成全局对象的构造
 	dprintf(SPEW, "calling constructors\n");
 	call_constructors();
 
-	// bring up the kernel heap
+	// 初始化内核堆管理器
 	dprintf(SPEW, "initializing heap\n");
 	heap_init();
 
+	// 设置栈保护机制
 	__stack_chk_guard_setup();
 
-	// initialize the threading system
+	// 初始化线程管理系统
 	dprintf(SPEW, "initializing threads\n");
 	thread_init();
 
-	// initialize the dpc system
+	// 初始化延迟过程调用（DPC）系统
 	dprintf(SPEW, "initializing dpc\n");
 	dpc_init();
 
-	// initialize kernel timers
+	// 初始化内核定时器系统
 	dprintf(SPEW, "initializing timers\n");
 	timer_init();
 
 #if (!ENABLE_NANDWRITE)
-	// create a thread to complete system initialization
+	// 创建引导完成线程，用于后续系统初始化工作
 	dprintf(SPEW, "creating bootstrap completion thread\n");
 	thr = thread_create("bootstrap2", &bootstrap2, NULL, DEFAULT_PRIORITY, DEFAULT_STACK_SIZE);
 	if (!thr)
@@ -124,41 +133,54 @@ void kmain(void)
 	}
 	thread_resume(thr);
 
-
-	// enable interrupts
+	// 启用中断，允许系统响应外部事件
 	exit_critical_section();
 
-	// become the idle thread
+	// 将当前线程转换为空闲线程，等待任务调度
 	thread_become_idle();
 #else
-        bootstrap_nandwrite();
+	// 在NAND写入模式下，直接执行引导写入逻辑
+	bootstrap_nandwrite();
 #endif
 }
 
 int main(void);
 
+/**
+ * @brief 第二阶段引导函数，负责初始化系统各个组件。
+ *
+ * 该函数是系统启动过程中的第二阶段，主要完成架构、平台、目标设备以及应用程序的初始化工作。
+ * 它依次调用架构初始化、平台初始化、目标设备初始化和应用程序初始化函数，确保系统各模块按顺序正确启动。
+ *
+ * @param arg 传递给函数的参数，当前未使用。
+ * @return 返回值始终为0，表示初始化成功。
+ */
 static int bootstrap2(void *arg)
 {
 	dprintf(SPEW, "top of bootstrap2()\n");
 
+	// 初始化系统架构相关组件
 	arch_init();
 
 	// XXX put this somewhere else
 #if WITH_LIB_BIO
+	// 初始化块I/O库（如果启用）
 	bio_init();
 #endif
 #if WITH_LIB_FS
+	// 初始化文件系统库（如果启用）
 	fs_init();
 #endif
 
-	// initialize the rest of the platform
+	// 初始化平台相关组件
 	dprintf(SPEW, "initializing platform\n");
 	platform_init();
 
-	// initialize the target
+	// 初始化目标设备相关组件
 	dprintf(SPEW, "initializing target\n");
 	target_init();
 
+	// 调用应用程序初始化函数
 	dprintf(SPEW, "calling apps_init()\n");
 	apps_init();
 

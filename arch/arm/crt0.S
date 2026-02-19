@@ -28,15 +28,24 @@
 
 .section ".text.boot"
 .globl _start
+
+/*
+ * _start: 程序的入口点，定义了异常向量表。
+ * 
+ * 该段代码位于 ".text.boot" 段中，是系统启动时执行的第一段代码。
+ * 异常向量表包含了处理器在发生不同异常时跳转的目标地址。
+ * 每个条目对应一种异常类型，按固定偏移量排列。
+ */
+
 _start:
-	b	reset
-	b	arm_undefined
-	b	arm_syscall
-	b	arm_prefetch_abort
-	b	arm_data_abort
-	b	arm_reserved
-	b	arm_irq
-	b	arm_fiq
+	b	reset              /* 跳转到复位异常处理程序 */
+	b	arm_undefined      /* 跳转到未定义指令异常处理程序 */
+	b	arm_syscall        /* 跳转到系统调用异常处理程序 */
+	b	arm_prefetch_abort /* 跳转到预取中止异常处理程序 */
+	b	arm_data_abort     /* 跳转到数据中止异常处理程序 */
+	b	arm_reserved       /* 跳转到保留异常处理程序 */
+	b	arm_irq            /* 跳转到中断请求异常处理程序 */
+	b	arm_fiq            /* 跳转到快速中断请求异常处理程序 */
 
 reset:
 	b	1f
